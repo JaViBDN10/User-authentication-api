@@ -1,3 +1,4 @@
+localStorage.clear();
 const routes = {
 	'/': `
 		<h1>Portal Tecnológico</h1>
@@ -8,24 +9,6 @@ const routes = {
 			<label>Pass</label>
 			<input id="pass" value="1234"></input><br>
 			<input  class="my-button" type="button" value="login" onclick="loginApi()"><br><br>
-		</div>
-		<div id="table" class="table-wrapper" hidden>
-			<h2>Tabla Usuarios</h2>
-			<table class="fl-table">
-				<thead>
-					<tr class="table-header">
-						<th scope="col">User ID</th>
-						<th scope="col">Name</th>
-						<th scope="col">Password</th>
-					</tr>
-				</thead>
-				<tbody id="table_body" class="table-row">
-
-				</tbody>
-			</table>
-			<div id="buttons">
-
-			</div>
 		</div>`,
 	'/user': `<div id="table" class="table-wrapper">
 			<h2>Tabla Usuarios</h2>
@@ -52,11 +35,16 @@ const routes = {
 	document.getElementById('main').innerHTML = content;
 }
 
-// Detectar cambios en la URL cuando el usuario usa "atrás" o "adelante"
+//Detectar cambios en la URL cuando el usuario usa "atrás" o "adelante"
 navigation.addEventListener('navigate', () => {	
 	renderPage(window.location.pathname);
+	showTable(); 
 });
 
+// Cargar la página correcta cuando se recarga
+window.addEventListener('popstate', () => {
+	renderPage(window.location.pathname);
+});
 // Cargar la página correcta cuando se recarga
 window.addEventListener('load', () => {
 	renderPage(window.location.pathname);
@@ -80,6 +68,7 @@ function getPass(){
 }
 function loginApi(){
 	var user= getUser();
+	var userLogin=user;
 	var pass= getPass();
 	fetch(dominio+'login',{
 		method:'POST',
@@ -90,13 +79,20 @@ function loginApi(){
 		})
 	})
 	.then(resp => {
-		if (resp.status=='200'){
+		// Guardar el status de la respuesta antes de convertirla en JSON
+		const status = resp.status; 
+		return resp.json().then(data => ({ status, data })); // Devuelve un objeto con status y data
+	})
+	.then(({ status, data }) => {
+		if (status === 200) {
+			localStorage.setItem('token', data.token); // Guarda el token en localStorage
 			window.history.pushState(null, '', '/user'); 
+			renderPage('/user'); 
 			showTable();
-		}else{
-			alert('Usuario o contraseña incorrectos');	
-			document.getElementById('user').value='';
-			document.getElementById('pass').value='';
+		} else {
+			alert('Usuario o contraseña incorrectos');
+			document.getElementById('user').value = '';
+			document.getElementById('pass').value = '';
 		}
 	})
 }
@@ -105,13 +101,20 @@ async function showTable(){
 	await fetch(dominio+'users',{
 		method:'GET',
 		mode: 'cors',
+		headers: {
+			'Authorization': `Bearer ${localStorage.token}`, // Aquí se envía el token
+			'Content-Type': 'application/json'
+		}
 	})
 	.then(resp => resp.json())
 	.then(data =>{
-		document.getElementById('main').innerHTML = '';
-		//document.getElementById('buttons').innerHTML = '';
+		if(data.status=='401'){
+			renderPage('/');
+		}else{
+			document.getElementById("buttons").innerHTML='';
 		let tableData="";
 		data.map((values)=>{
+			
 			tableData+=`<tr>
 							<td>${values.personid}</td>
 							<td>${values.name}</td>
@@ -123,9 +126,12 @@ async function showTable(){
 					<input class="my-button" type="button" value="Añadir Usuario" onclick="addUserMenu()"><br>
 					<input class="my-button" type="button" value="Borrar Usuario" onclick="deleteUserMenu()"><br>
 					<input class="my-button" type="button" value="Modificar Usuario" onclick="alterUserMenu()"></div>`;
-	}	
+	
+		}
+		}	
 )}
 function addUserMenu(){
+	document.getElementById("buttons").innerHTML='';
 	document.getElementById("buttons").innerHTML+=`<div class="nuevo" id="add"><br>
 	<label class="newLabel">Nuevo Usuario</label>
 	<input id="newUser"></input>
@@ -135,6 +141,7 @@ function addUserMenu(){
 	</div>`;
 }
 function deleteUserMenu(){
+	document.getElementById("buttons").innerHTML='';
 	document.getElementById("buttons").innerHTML+=`<div class="nuevo" id="add"><br>
 	<label class="newLabel">Borrar Usuario</label>
 	<input id="delUser"></input>
@@ -144,6 +151,7 @@ function deleteUserMenu(){
 	</div>`;
 }
 function alterUserMenu(){
+	document.getElementById("buttons").innerHTML='';
 	document.getElementById("buttons").innerHTML+=`<div class="nuevo" id="add"><br>
 	<label class="newLabel">Modificar Usuario</label>
 	<input id="delUser"></input>
@@ -165,7 +173,12 @@ async function addUser() {
 		mode: 'cors',
 		body: JSON.stringify({ user: user, pass: pass })
 	})
-		showTable()
+	.then(resp => {
+		if(resp.status==200){
+			showTable();
+		}else{
+			alert('Error al añadir usuario');
+		}})
 }
 async function delUser() {
 	var user = document.getElementById('delUser').value;
@@ -175,7 +188,12 @@ async function delUser() {
 		mode: 'cors',
 		body: JSON.stringify({ user: user, pass: pass })
 	})
-		showTable()
+	.then(resp => {
+		if(resp.status==200){
+			showTable();
+		}else{
+			alert('Error al añadir usuario');
+		}})
 }
 async function alterUser() {
 	var user = document.getElementById('delUser').value;
@@ -187,6 +205,11 @@ async function alterUser() {
 		mode: 'cors',
 		body: JSON.stringify({ user: user, pass: pass,newPass: newPass,newUser: newUser })
 	})
-		showTable()
+	.then(resp => {
+		if(resp.status==200){
+			showTable();
+		}else{
+			alert('Error al añadir usuario');
+		}})
 }
 

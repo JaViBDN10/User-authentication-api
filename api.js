@@ -1,3 +1,6 @@
+const jwt = require('jsonwebtoken');
+const SECRET_KEY = 'supersecreto1234'; // Cambiar por una clave fuerte y almacenarla en un entorno seguro
+const TOKEN_EXPIRATION = '1h'; // El token expirará en 1 hora
 const http = require('http');
 const { Pool } = require('pg'); // Importar el cliente pg
 
@@ -16,6 +19,7 @@ const server = http.createServer(
 	request.on('data', chunk => {
         body += chunk.toString(); // convert Buffer to string
     });
+	console.log('asasda');
     request.on('end', async () => {
 			var action;
         	response.setHeader('Access-Control-Allow-Origin', '*');
@@ -27,17 +31,27 @@ const server = http.createServer(
 			let cuenta = JSON.parse(body);
 			var resLogin = await consultaLogin(cuenta.user,cuenta.pass);
 			if (resLogin){
-				response.writeHead(200);
+				const token = jwt.sign({ user: cuenta.user }, SECRET_KEY, { expiresIn: TOKEN_EXPIRATION });
+				response.writeHead(200, {'Content-Type': 'application/json'});
+				response.end(JSON.stringify({ token })); // Devolver el token al cliente
 			}else{
 				response.writeHead(401);
+				response.end();
 			}
-			response.end();
 		}
 		//Request para mostrar la tabla users
 		if(request.url=="/users" && request.method=='GET'){
-			var resTabla = await consultaTabla();
-			response.writeHead(200,{'Content-Type':'application/json'});
-			response.end(JSON.stringify(resTabla));
+			const verified = verifyToken(request);
+			if (!verified) {
+				response.writeHead(401, { 'Content-Type': 'application/json' });
+				response.end(JSON.stringify({ error: 'Token no válido o no proporcionado' }));
+				return;
+   			}else{
+				var resTabla = await consultaTabla();
+				response.writeHead(200,{'Content-Type':'application/json'});
+				response.end(JSON.stringify(resTabla));	
+			}
+			
 		}
 		//Request para añadir usuario
 		if(request.url=="/add" && request.method=='POST'){
@@ -115,4 +129,16 @@ function alterTable(user,pass,newUser,newPass) {
 	pool.query(query);
 	let newQuery = consultaTabla();
 	return newQuery;
+}
+function verifyToken(request) {
+    const authHeader = request.headers['authorization'];
+    if (!authHeader) return null;
+
+    const token = authHeader.split(' ')[1]; // Separa el Bearer del token
+    try {
+        const decoded = jwt.verify(token, SECRET_KEY);
+        return decoded; // Información decodificada del token
+    } catch (err) {
+        return null; // Token no válido
+    }
 }
