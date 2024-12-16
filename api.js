@@ -19,7 +19,6 @@ const server = http.createServer(
 	request.on('data', chunk => {
         body += chunk.toString(); // convert Buffer to string
     });
-	console.log('asasda');
     request.on('end', async () => {
 			var action;
         	response.setHeader('Access-Control-Allow-Origin', '*');
@@ -32,7 +31,10 @@ const server = http.createServer(
 			var resLogin = await consultaLogin(cuenta.user,cuenta.pass);
 			if (resLogin){
 				const token = jwt.sign({ user: cuenta.user }, SECRET_KEY, { expiresIn: TOKEN_EXPIRATION });
-				response.writeHead(200, {'Content-Type': 'application/json'});
+				response.writeHead(200, { 
+					'Content-Type': 'application/json', 
+					'Access-Control-Allow-Origin': '*' 
+				  });
 				response.end(JSON.stringify({ token })); // Devolver el token al cliente
 			}else{
 				response.writeHead(401);
@@ -41,20 +43,22 @@ const server = http.createServer(
 		}
 		//Request para mostrar la tabla users
 		if(request.url=="/users" && request.method=='GET'){
-			const verified = verifyToken(request);
-			if (!verified) {
-				response.writeHead(401, { 'Content-Type': 'application/json' });
-				response.end(JSON.stringify({ error: 'Token no válido o no proporcionado' }));
-				return;
-   			}else{
+			// console.log('users');
+			// const verified = verifyToken(request);
+			// if (!verified) {
+			// 	response.writeHead(401, { 'Content-Type': 'application/json' });
+			// 	response.end(JSON.stringify({ error: 'Token no válido o no proporcionado' }));
+			// 	return;
+   			// }else{
 				var resTabla = await consultaTabla();
 				response.writeHead(200,{'Content-Type':'application/json'});
 				response.end(JSON.stringify(resTabla));	
-			}
+			//}
 			
 		}
 		//Request para añadir usuario
 		if(request.url=="/add" && request.method=='POST'){
+			console.log('add');
 			let newUser = JSON.parse(body);
 			//Declaramos la variable action a 0 para añadir usuario
 			action=0;
@@ -64,6 +68,7 @@ const server = http.createServer(
 		}
 		//Request para borrar usuario
 		if(request.url=="/del" && request.method=='DELETE'){
+			console.log('del');
 			let delUser = JSON.parse(body);
 			//Declaramos la variable action a 1 para borrar usuario
 			action=1;
@@ -73,6 +78,7 @@ const server = http.createServer(
 		}
 		//Request para modificar usuario
 		if(request.url=="/alter" && request.method=='PUT'){
+			console.log('alter');
 			let alterUser = JSON.parse(body);
 			
 			var del = await alterTable(alterUser.user,alterUser.pass,alterUser.newUser,alterUser.newPass);
