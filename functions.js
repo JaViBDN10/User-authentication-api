@@ -93,16 +93,12 @@ async function showTable(){
 			'Content-Type': 'application/json'
 		}
 	})
-	.then(resp => {
-		const resp_status = resp.status;
-		resp.json();
-	})
-	.then(data =>{
-		console.log(resp_status);
-		if(resp_status==401){
-		 	goToRoute('/');
-		}else{
-		document.getElementById("buttons").innerHTML='';
+	.then(async resp => {
+		if(resp.status==401){
+			goToRoute('/');
+		}else if(resp.status==200){
+			var data= await resp.json();
+			document.getElementById("buttons").innerHTML='';
 		let tableData="";
 		data.map((values)=>{
 			
@@ -117,10 +113,10 @@ async function showTable(){
 					<input class="my-button" type="button" value="Añadir Usuario" onclick="addUserMenu()"><br>
 					<input class="my-button" type="button" value="Borrar Usuario" onclick="deleteUserMenu()"><br>
 					<input class="my-button" type="button" value="Modificar Usuario" onclick="alterUserMenu()"></div>`;
-	
-		}
-		}	
-)}
+
+		}		
+	})
+}
 function addUserMenu(){
 	document.getElementById("addButtons").innerHTML='';
 	document.getElementById("addButtons").innerHTML+=`<div class="nuevo" id="add"><br>
