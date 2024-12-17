@@ -1,6 +1,5 @@
-localStorage.clear();
 const routes = {
-	'/': `
+	'/': `<div style="padding-left:20%;">
 		<h1>Portal Tecnológico</h1>
 		
 		<div id="login"><br>
@@ -9,6 +8,7 @@ const routes = {
 			<label>Pass</label>
 			<input id="pass" value="1234"></input><br>
 			<input  class="my-button" type="button" value="login" onclick="loginApi()"><br><br>
+		</div>
 		</div>`,
 	'/user': `<div id="divMain">
 				<div class="sideBar">
@@ -33,39 +33,19 @@ const routes = {
 			</div>
 			</div>`
 };
- // Renderizar el contenido de la página basado en la URL
- function renderPage(path) {
+function renderPage(path) {
 	const content = routes[path] || '<h1>404 - Página no encontrada</h1>';
 	document.getElementById('main').innerHTML = content;
+	switch(path){
+		case '/':
+
+		break;
+		case '/user':
+			showTable();
+		break;
+		default:
+	}
 }
-
-// //Detectar cambios en la URL cuando el usuario usa "atrás" o "adelante"
-// navigation.addEventListener('navigate', () => {	
-// 	//alert(window.location.pathname);
-// 	//renderPage(window.location.pathname);
-// 	renderPage('/user'); 
-// 	showTable(); 
-// });
-
-// // Cargar la página correcta cuando se recarga
-// window.addEventListener('popstate', () => {
-// 	//alert('refresh popstate');
-// 	renderPage('/user'); 
-// 	//renderPage(window.location.pathname);
-// });
-// Cargar la página correcta cuando se recarga
-window.addEventListener('load', () => {
-	//alert('refresh load');
-	renderPage(window.location.pathname);
-});
-// window.addEventListener('hashchange', () => {
-// 	renderPage(window.location.pathname);
-// });
-// // Cambiar la vista y la URL usando pushState
-// function navigateTo(path) {
-// 	history.pushState(null, '', path);
-// 	renderPage(path);
-// }
 const dominio = "http://localhost:3000/";
 function getUser(){
 			var user = document.getElementById('user').value;
@@ -77,7 +57,6 @@ function getPass(){
 }
 async function loginApi(){
 	var user= getUser();
-	//var userLogin=user;
 	var pass= getPass();
 	await fetch(dominio+'login',{
 		method:'POST',
@@ -87,43 +66,42 @@ async function loginApi(){
 			pass:pass
 		})
 	})
-	window.history.pushState(null, '', '/user');
-	renderPage('/user');
-	showTable();
-	// .then(resp => {
-	// 	// Guardar el status de la respuesta antes de convertirla en JSON
-	// 	const status = resp.status; 
-	// 	return resp.json().then(data => ({ status, data })); // Devuelve un objeto con status y data
-	// })
-	// .then(({ status, data }) => {
-	// 	if (status === 200) {
-	// 		localStorage.setItem('token', data.token); // Guarda el token en localStorage
-	// 		window.history.pushState(null, '', '/user'); 
-	// 		renderPage('/user'); 
-	// 		//showTable();
-	// 	} else {
-	// 		alert('Usuario o contraseña incorrectos');
-	// 		document.getElementById('user').value = '';
-	// 		document.getElementById('pass').value = '';
-	// 	}
-	// })
-	// .catch(error => alert('wtf'))
+	.then(async response =>  { 
+		var resp_token = await response.json();
+		if (response.status === 200) {
+			var data = resp_token.token;
+			localStorage.setItem('token', data);
+			goToRoute('/user')
+		} else {
+			alert('Usuario o contraseña incorrectos');
+			document.getElementById('user').value = '';
+			document.getElementById('pass').value = '';
+		}
+	})
+	.catch(error => console.log(error))
 }
-
+function goToRoute (route){
+	window.history.pushState({}, '', route); 
+	renderPage(window.location.pathname);	
+}
 async function showTable(){
 	await fetch(dominio+'users',{
 		method:'GET',
 		mode: 'cors',
 		headers: {
-			//'Authorization': `Bearer ${localStorage.token}`, // Aquí se envía el token
+			'Authorization': `Bearer ${localStorage.token}`, // Aquí se envía el token
 			'Content-Type': 'application/json'
 		}
 	})
-	.then(resp => resp.json())
+	.then(resp => {
+		const resp_status = resp.status;
+		resp.json();
+	})
 	.then(data =>{
-		// if(data.status=='401'){
-		// 	renderPage('/');
-		// }else{
+		console.log(resp_status);
+		if(resp_status==401){
+		 	goToRoute('/');
+		}else{
 		document.getElementById("buttons").innerHTML='';
 		let tableData="";
 		data.map((values)=>{
@@ -141,7 +119,7 @@ async function showTable(){
 					<input class="my-button" type="button" value="Modificar Usuario" onclick="alterUserMenu()"></div>`;
 	
 		}
-		//}	
+		}	
 )}
 function addUserMenu(){
 	document.getElementById("addButtons").innerHTML='';
@@ -185,12 +163,19 @@ async function addUser() {
 	await fetch(dominio + 'add', {
 		method: 'POST',
 		mode: 'cors',
+		headers: {
+			'Authorization': `Bearer ${localStorage.token}`, // Aquí se envía el token
+			'Content-Type': 'application/json'
+		},
 		body: JSON.stringify({ user: user, pass: pass })
 	})
 	.then(resp => {
 		if(resp.status==200){
 			alert('usuario añadido');
 			showTable();
+		}else if(resp.status==401){
+			alert('Usuario no autorizado');
+			goToRoute('/');
 		}else{
 			alert('Error al añadir usuario');
 		}})
@@ -202,14 +187,21 @@ async function delUser() {
 	await fetch(dominio + 'del', {
 		method: 'DELETE',
 		mode: 'cors',
+		headers: {
+			'Authorization': `Bearer ${localStorage.token}`, // Aquí se envía el token
+			'Content-Type': 'application/json'
+		},
 		body: JSON.stringify({ user: user, pass: pass })
 	})
 	.then(resp => {
 		if(resp.status==200){
-			alert('usuario añadido');
+			alert('usuario eliminado');
 			showTable();
+		}else if(resp.status==401){
+			alert('Usuario no autorizado');
+			goToRoute('/');
 		}else{
-			alert('Error al añadir usuario');
+			alert('Error al borrar usuario');
 		}})
 }
 async function alterUser() {
@@ -221,14 +213,21 @@ async function alterUser() {
 	await fetch(dominio + 'alter', {
 		method: 'PUT',
 		mode: 'cors',
+		headers: {
+			'Authorization': `Bearer ${localStorage.token}`, // Aquí se envía el token
+			'Content-Type': 'application/json'
+		},
 		body: JSON.stringify({ user: user, pass: pass,newPass: newPass,newUser: newUser })
 	})
 	.then(resp => {
 		if(resp.status==200){
 			alert('usuario modificado');
 			showTable();
+		}else if(resp.status==401){
+			alert('Usuario no autorizado');
+			goToRoute('/');
 		}else{
-			alert('Error al añadir usuario');
+			alert('Error al modificar usuario');
 		}})
 }
-
+renderPage(window.location.pathname);
